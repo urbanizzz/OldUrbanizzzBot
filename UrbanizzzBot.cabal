@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 3e9250f12b0fc519faf30b09545938f97be832db13ba6ea733c6589208e6a074
+-- hash: b2bd86b6696528368c7be8b4136cb0a252b8ca3117e8fdde34b7e9abecea2c32
 
 name:           UrbanizzzBot
 version:        0.1.0.0
@@ -27,4 +27,6 @@ executable UrbanizzzBot
       src
   build-depends:
       base >=4.7 && <5
+    , bytestring
+    , http-conduit
   default-language: Haskell2010
