@@ -1,0 +1,20 @@
+name:                UrbanizzzBot
+version:             0.1.0.0
+#synopsis:
+#description:
+homepage:            https://github.com/urbanizzz/UrbanizzzBot#readme
+license:             BSD3
+author:              Oskin Yury
+maintainer:          yuraoskin@gmail.com
+copyright:           urbanizzz
+category:            Web
+extra-source-files:
+- README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+
+executables:
+  UrbanizzzBot:
+    source-dirs:      src
+    main:             Main.hs
