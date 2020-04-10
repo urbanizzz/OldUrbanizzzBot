@@ -16,9 +16,9 @@ working proxy
 
 fetchJSON :: IO L8.ByteString
 fetchJSON = do
-    let request = setRequestProxy (Just (Proxy "45.151.169.28" 80)) botURL
-    res <- httpLBS request
-    return (getResponseBody res)
+  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) botURL
+  res <- httpLBS request
+  return (getResponseBody res)
 
 
 main :: IO ()
