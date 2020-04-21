@@ -15,7 +15,7 @@ dependencies:
   - base >= 4.7 && < 5
   - bytestring
   - http-conduit
-
+  - aeson
 
 executables:
   UrbanizzzBot:
