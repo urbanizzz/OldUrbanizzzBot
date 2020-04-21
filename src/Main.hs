@@ -34,8 +34,7 @@ fetchJSON = do
   res <- httpLBS request
   return (getResponseBody res)
 
-
-lastMsg :: IO String
+lastMsg :: IO Message
 lastMsg = do
   rawJSON <- fetchJSON
   let result = decode rawJSON :: Maybe Messages
