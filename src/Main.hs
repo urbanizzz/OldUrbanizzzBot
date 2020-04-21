@@ -10,13 +10,10 @@ import            Control.Monad           (mzero)
 import            Control.Applicative     ((<$>), (<*>))
 
 -- single message
-data Message = Message  { senderName :: String, text :: String }
+data Message = Message  { text :: String }
 instance FromJSON Message where
   parseJSON (Object msg)  = Message
                             <$>
-                            -- extracting sender of a message (message -> from -> username)
-                            (msg .: "message" >>= (.: "from") >>= (.: "username"))
-                            <*>
                             -- extracting text of a message (message -> text)
                             (msg .: "message" >>= (.: "text"))
   parseJSON _             = mzero
@@ -39,7 +36,7 @@ lastMsg = do
   rawJSON <- fetchJSON
   let result = decode rawJSON :: Maybe Messages
   return $ case result of
-    Nothing -> Message "system" "Error"
+    Nothing -> Message "Error"
     Just (Messages js) -> last js
 
 main :: IO ()
@@ -49,4 +46,4 @@ main = do
 
 
 printPretty :: Message -> String
-printPretty (Message name text) = "name = " ++ name ++ ", text = " ++ text
+printPretty (Message text) = text
