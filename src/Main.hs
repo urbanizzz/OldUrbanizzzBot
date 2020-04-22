@@ -31,13 +31,14 @@ fetchJSON = do
   res <- httpLBS request
   return (getResponseBody res)
 
+-- getting last message
 lastMsg :: IO Message
 lastMsg = do
   rawJSON <- fetchJSON
   let result = decode rawJSON :: Maybe Messages
   return $ case result of
     Nothing -> Message "Error"
-    Just (Messages js) -> last js
+    Just (Messages js) -> if null js then Message "" else last js
 
 main :: IO ()
 main = do
