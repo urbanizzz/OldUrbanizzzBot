@@ -30,7 +30,7 @@ instance FromJSON Messages where
   parseJSON (Object msgs) = Messages <$> msgs .: "result"
 
 botURL = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/getUpdates?offset=185794573"
-botURL1 = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/sendMessage?chat_id=845633894&text='fuck you'"
+botURL1 = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/sendMessage?chat_id=845633894&text=fuck you"
 
 fetchJSON :: IO B.ByteString
 fetchJSON = do
@@ -60,7 +60,7 @@ listMsg = do
 sendMsg :: IO ()
 sendMsg = do
   let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ botURL1
-  res <- httpLBS request
+  httpLBS request
   return ()
 
 main :: IO ()
