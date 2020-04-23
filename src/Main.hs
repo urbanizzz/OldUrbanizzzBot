@@ -10,10 +10,16 @@ import            Control.Monad           (mzero)
 import            Control.Applicative     ((<$>), (<*>))
 
 -- single message
-data Message = Message  { text :: String }
+data Message = Message  { update_id :: Integer, chat_id :: Integer, text :: String }
 instance FromJSON Message where
   parseJSON (Object msg)  = Message
                             <$>
+                            -- extract update_id
+                            (msg .: "update_id")
+                            <*>
+                            -- extracting chat_id (message -> chat -> id)
+                            (msg .: "message" >>= (.: "chat") >>= (.: "id"))
+                            <*>
                             -- extracting text of a message (message -> text)
                             (msg .: "message" >>= (.: "text"))
   parseJSON _             = mzero
@@ -23,13 +29,15 @@ data Messages = Messages [Message]
 instance FromJSON Messages where
   parseJSON (Object msgs) = Messages <$> msgs .: "result"
 
-botURL = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/getUpdates"
+botURL = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/getUpdates?offset=185794573"
+botURL1 = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/sendMessage?chat_id=845633894&text='fuck you'"
 
 fetchJSON :: IO B.ByteString
 fetchJSON = do
-  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) botURL
+  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ botURL
   res <- httpLBS request
   return (getResponseBody res)
+
 
 -- getting last message
 lastMsg :: IO String
@@ -47,17 +55,22 @@ listMsg = do
   let result = decode rawJSON :: Maybe Messages
   return $ case result of
     Nothing -> "Error"
-    Just (Messages js) -> show $ printPretty <$> js
+    Just (Messages js) -> foldl (\a s -> a ++ "\n" ++ s) "" $ printPretty <$> js
 
--- sendMsg :: IO ()
--- sendMsg =
+sendMsg :: IO ()
+sendMsg = do
+  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ botURL1
+  res <- httpLBS request
+  return ()
 
 main :: IO ()
 main = do
+  sendMsg
   -- listMsg or lastMsg
-  msg <- lastMsg
+  msg <- listMsg
   putStrLn msg
 
 
 printPretty :: Message -> String
-printPretty (Message text) = text
+printPretty (Message update chat text) =
+  "update=" ++ show update ++ ", chat=" ++ show chat ++ ", " ++ text
