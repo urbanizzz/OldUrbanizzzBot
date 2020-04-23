@@ -32,18 +32,31 @@ fetchJSON = do
   return (getResponseBody res)
 
 -- getting last message
-lastMsg :: IO Message
+lastMsg :: IO String
 lastMsg = do
   rawJSON <- fetchJSON
   let result = decode rawJSON :: Maybe Messages
   return $ case result of
-    Nothing -> Message "Error"
-    Just (Messages js) -> if null js then Message "" else last js
+    Nothing -> "Error"
+    Just (Messages js) -> if null js then "" else printPretty . last $ js
+
+-- getting list of messages
+listMsg :: IO String
+listMsg = do
+  rawJSON <- fetchJSON
+  let result = decode rawJSON :: Maybe Messages
+  return $ case result of
+    Nothing -> "Error"
+    Just (Messages js) -> show $ printPretty <$> js
+
+-- sendMsg :: IO ()
+-- sendMsg =
 
 main :: IO ()
 main = do
+  -- listMsg or lastMsg
   msg <- lastMsg
-  putStrLn $ printPretty msg
+  putStrLn msg
 
 
 printPretty :: Message -> String
