@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d32951ed2da088ec06ccb144f49ec945049f436099087b4b8c0887279e2bd86d
+-- hash: 3e9d10f7d8794a351a7bd563f2efdbb284d6627fabc3a3d0e47038d1aa755795
 
 name:           UrbanizzzBot
 version:        0.1.0.0
@@ -27,6 +27,7 @@ executable UrbanizzzBot
       src
   build-depends:
       aeson
+    , aeson-pretty
     , base >=4.7 && <5
     , bytestring
     , http-conduit

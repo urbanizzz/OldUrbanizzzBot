@@ -16,6 +16,7 @@ dependencies:
   - bytestring
   - http-conduit
   - aeson
+  - aeson-pretty
 
 executables:
   UrbanizzzBot:
