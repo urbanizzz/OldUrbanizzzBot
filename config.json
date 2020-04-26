@@ -1,6 +1,6 @@
 {
-    "about":"UrbanizzzBot",
-    "repeat":1,
-    "repeat_question":"Enter the number of repetitions",
-    "offset":185794573
+    "offset": 0,
+    "repeat_question": "Enter the number of repetitions",
+    "repeat": 1,
+    "about": "UrbanizzzBot"
 }
