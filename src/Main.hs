@@ -94,7 +94,6 @@ writeCfg cfg = withFile fileCfg WriteMode (\handle -> do
       hClose tempHandle
       renameFile tempName fileCfg)-}
 
-
 fetchJSON :: IO B.ByteString
 fetchJSON = do
   cfg <- readCfg
@@ -112,22 +111,13 @@ lastMsg = do
     Nothing -> Nothing
     Just (Messages js) -> if null js then Nothing else Just . last $ js
 
--- getting list of messages
-listMsg :: IO String
-listMsg = do
-  rawJSON <- fetchJSON
-  let result = decode rawJSON :: Maybe Messages
-  return $ case result of
-    Nothing -> "Error"
-    Just (Messages js) -> foldl (\a s -> a ++ "\n" ++ s) "" $ printPretty <$> js
-
-{-
 repeatMsg :: IO ()
 repeatMsg = do
-  return $ case lastMsg of
+  message <- lastMsg
+  return $ case message of
     Nothing -> ()
     Just msg -> sendMsg msg
--}
+
 
 -- sending message
 sendMsg :: Message -> IO ()
@@ -139,7 +129,7 @@ sendMsg msg = do
 
 main :: IO ()
 main = do
-  msg <- lastMsg
+  repeatMsg
   return ()
 
 
@@ -147,3 +137,12 @@ main = do
 printPretty :: Message -> String
 printPretty (Message update chat text) =
   "update=" ++ show update ++ ", chat=" ++ show chat ++ ", " ++ text
+
+-- getting list of messages
+listMsg :: IO String
+listMsg = do
+  rawJSON <- fetchJSON
+  let result = decode rawJSON :: Maybe Messages
+  return $ case result of
+    Nothing -> "Error"
+    Just (Messages js) -> foldl (\a s -> a ++ "\n" ++ s) "" $ printPretty <$> js
