@@ -69,7 +69,11 @@ defaultCfg  = Config {
                 about = "UrbanizzzBot",
                 repeatNumber = 1,
                 repeatQuestion = "Enter the number of repetitions",
-                offset = 0}
+                offset = 0 }
+emptyMsg =  Message {
+              update_id = 0,
+              chat_id = 0,
+              text = "" }
 
 readCfg :: IO Config
 readCfg = do
@@ -103,21 +107,18 @@ fetchJSON = do
   return (getResponseBody res)
 
 -- getting last message
-lastMsg :: IO (Maybe Message)
+lastMsg :: IO Message
 lastMsg = do
   rawJSON <- fetchJSON
   let result = decode rawJSON :: Maybe Messages
   return $ case result of
-    Nothing -> Nothing
-    Just (Messages js) -> if null js then Nothing else Just . last $ js
+    Nothing -> emptyMsg
+    Just (Messages js) -> if null js then emptyMsg else last $ js
 
 repeatMsg :: IO ()
 repeatMsg = do
-  message <- lastMsg
-  return $ case message of
-    Nothing -> ()
-    Just msg -> sendMsg msg
-
+  msg <- lastMsg
+  if text msg == "" then return () else sendMsg msg
 
 -- sending message
 sendMsg :: Message -> IO ()
