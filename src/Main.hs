@@ -4,6 +4,7 @@ module Main where
 
 import            System.IO
 import            Network.HTTP.Simple
+import qualified  Data.ByteString             as BS
 import qualified  Data.ByteString.Lazy        as B
 import qualified  Data.ByteString.Lazy.Char8  as B8
 import            Data.Aeson
@@ -77,8 +78,9 @@ emptyMsg =  Message {
 
 readCfg :: IO Config
 readCfg = do
-  rawJSON <- B.readFile fileCfg
-  let result = decode rawJSON :: Maybe Config
+  rawJSON <- BS.readFile fileCfg
+  -- rawJSON <- withFile fileCfg ReadMode (\handle -> B.hGetContents handle)
+  let result = decodeStrict rawJSON :: Maybe Config
   return $ case result of
     Nothing -> defaultCfg
     Just js -> js
@@ -97,6 +99,9 @@ writeCfg cfg = withFile fileCfg WriteMode (\handle -> do
       B.hPutStr tempHandle cfg
       hClose tempHandle
       renameFile tempName fileCfg)-}
+
+editCfgOffset :: Integer -> Config -> Config
+editCfgOffset off (Config ab rep repq _) = Config ab rep repq off
 
 fetchJSON :: IO B.ByteString
 fetchJSON = do
@@ -118,7 +123,12 @@ lastMsg = do
 repeatMsg :: IO ()
 repeatMsg = do
   msg <- lastMsg
-  if text msg == "" then return () else sendMsg msg
+  if text msg == ""
+    then return ()
+    else do
+      cfg <- readCfg
+      writeCfg $ editCfgOffset (1 + update_id msg) cfg
+      sendMsg msg
 
 -- sending message
 sendMsg :: Message -> IO ()
@@ -130,7 +140,12 @@ sendMsg msg = do
 
 main :: IO ()
 main = do
+  -- listMsg
   repeatMsg
+  -- cfg <- readCfg
+  -- print cfg
+  -- writeCfg $ Config "qqq" 10 "Bla-bla" 20
+
   return ()
 
 
