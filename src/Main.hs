@@ -110,7 +110,6 @@ fetchJSON = do
   let request = url {
     proxy           = Just (Proxy {proxyHost = "127.0.0.1", proxyPort = 9041}),
     responseTimeout = ResponseTimeoutNone }
-
   res <- httpLBS request
   return (getResponseBody res)
 
@@ -123,16 +122,6 @@ lastMsg = do
     Nothing -> emptyMsg
     Just (Messages js) -> if null js then emptyMsg else last $ js
 
-repeatMsg :: IO ()
-repeatMsg = do
-  msg <- lastMsg
-  if text msg == ""
-    then return ()
-    else do
-      cfg <- readCfg
-      writeCfg $ editCfgOffset (1 + update_id msg) cfg
-      sendMsg msg
-
 -- sending message
 sendMsg :: Message -> IO ()
 sendMsg msg = do
@@ -141,28 +130,23 @@ sendMsg msg = do
   httpLBS request
   return ()
 
+repeatMsg :: Int -> Message -> IO ()
+repeatMsg 0 _ = return ()
+repeatMsg n msg = do
+  sendMsg msg
+  repeatMsg (n-1) msg
+
+showRepeat :: Message -> IO ()
+showRepeat msg = undefined
+
 main :: IO ()
 main = do
-  -- listMsg
-  print "begin"
-  repeatMsg
-  -- cfg <- readCfg
-  -- print cfg
-  -- writeCfg $ Config "qqq" 10 "Bla-bla" 20
-
-  return ()
-
-
-
-printPretty :: Message -> String
-printPretty (Message update chat text) =
-  "update=" ++ show update ++ ", chat=" ++ show chat ++ ", " ++ text
-
--- getting list of messages
-listMsg :: IO String
-listMsg = do
-  rawJSON <- fetchJSON
-  let result = decode rawJSON :: Maybe Messages
-  return $ case result of
-    Nothing -> "Error"
-    Just (Messages js) -> foldl (\a s -> a ++ "\n" ++ s) "" $ printPretty <$> js
+  print "Waiting for updates"
+  msg <- lastMsg
+  cfg <- readCfg
+  writeCfg $ cfg {offset = 1 + update_id msg}
+  case text msg of
+    "/help"   -> sendMsg msg {text = about cfg}
+    "/repeat" -> showRepeat msg
+    otherwise -> repeatMsg (fromIntegral . repeatNumber $ cfg) msg
+  main
