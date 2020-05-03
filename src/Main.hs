@@ -4,11 +4,11 @@ module Main where
 
 import            System.IO
 import            Network.HTTP.Simple
+import            Network.HTTP.Client.Internal
 import qualified  Data.ByteString             as BS
 import qualified  Data.ByteString.Lazy        as B
 import qualified  Data.ByteString.Lazy.Char8  as B8
 import            Data.Aeson
-import            Data.Aeson.Types            (parseMaybe)
 import qualified  Data.Aeson.Encode.Pretty    as Pr
 import            Control.Monad               (mzero)
 import            Control.Applicative         ((<$>), (<*>))
@@ -106,8 +106,11 @@ editCfgOffset off (Config ab rep repq _) = Config ab rep repq off
 fetchJSON :: IO B.ByteString
 fetchJSON = do
   cfg <- readCfg
-  url <- parseRequest $ botURL ++ "getUpdates?offset=" ++ (show . offset $ cfg)
-  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) url
+  url <- parseRequest $ botURL ++ "getUpdates?offset=" ++ (show . offset $ cfg) ++ "&timeout=60"
+  let request = url {
+    proxy           = Just (Proxy {proxyHost = "127.0.0.1", proxyPort = 9041}),
+    responseTimeout = ResponseTimeoutNone }
+
   res <- httpLBS request
   return (getResponseBody res)
 
@@ -141,6 +144,7 @@ sendMsg msg = do
 main :: IO ()
 main = do
   -- listMsg
+  print "begin"
   repeatMsg
   -- cfg <- readCfg
   -- print cfg
