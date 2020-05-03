@@ -32,12 +32,12 @@ instance FromJSON Config where
                             cfg .: "offset"
   parseJSON _             = mzero
 instance ToJSON Config where
-    toJSON (Config ab rep repq off) = object [
-                                      "about"           .= ab,
-                                      "repeat"          .= rep,
-                                      "repeat_question" .= repq,
-                                      "offset"          .= off
-                                      ]
+  toJSON (Config ab rep repq off) = object [
+                                    "about"           .= ab,
+                                    "repeat"          .= rep,
+                                    "repeat_question" .= repq,
+                                    "offset"          .= off
+                                    ]
 instance Show Config where
   show (Config ab rep repq off) = "About=" ++ ab ++
                                   "\nNumber of repetitions=" ++ show rep ++
@@ -76,6 +76,8 @@ emptyMsg =  Message {
               chat_id = 0,
               text = "" }
 
+
+
 readCfg :: IO Config
 readCfg = do
   rawJSON <- BS.readFile fileCfg
@@ -99,9 +101,6 @@ writeCfg cfg = withFile fileCfg WriteMode (\handle -> do
       B.hPutStr tempHandle cfg
       hClose tempHandle
       renameFile tempName fileCfg)-}
-
-editCfgOffset :: Integer -> Config -> Config
-editCfgOffset off (Config ab rep repq _) = Config ab rep repq off
 
 fetchJSON :: IO B.ByteString
 fetchJSON = do
@@ -137,10 +136,40 @@ repeatMsg n msg = do
   repeatMsg (n-1) msg
 
 showRepeat :: Message -> IO ()
-showRepeat msg = undefined
+showRepeat msg = do
+  key <- BS.readFile "/home/urban/haskell/keyboard.json"
+  --let key = "&reply_markup={\"keyboard\":[[{\"text\":\"1\"},{\"text\":\"2\"},{\"text\":\"3\"},{\"text\":\"4\"},{\"text\":\"5\"}]]}"
+  url <- parseRequest $ botURL ++ "sendMessage?chat_id=" ++ (show . chat_id $ msg) ++ "&text=Enter number of repetitions" ++ "&reply_markup=" -- ++ key
+  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ url
+  httpLBS request
+  return ()
+
+
+data Key = Key {keytext :: String}
+instance ToJSON Key where
+  toJSON (Key key) = object ["text" .= key]
+
+data KeyRow = KeyRow [Key]
+-- instance ToJSON KeyRow where
+--   toJSON (KeyRow key) =
+-- data Keyboard = Keyboard [KeyRow]
+-- instance ToJSON Keyboard where
+
+k1 = Key "key 1"
+k2 = Key "key 2"
+k3 = Key "key 3"
+k4 = Key "key 4"
+k5 = Key "key 5"
+
+krow1 = KeyRow [k1, k2, k3]
 
 main :: IO ()
 main = do
+  B8.putStrLn $ Pr.encodePretty <$> krow1
+
+
+
+main' = do
   print "Waiting for updates"
   msg <- lastMsg
   cfg <- readCfg
