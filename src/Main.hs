@@ -13,7 +13,6 @@ import qualified  Data.Aeson.Encode.Pretty    as Pr
 import            Control.Monad               (mzero)
 import            Control.Applicative         ((<$>), (<*>))
 
-
 -- config
 data Config = Config {
   about           :: String,
@@ -75,7 +74,7 @@ emptyMsg =  Message {
               update_id = 0,
               chat_id = 0,
               text = "" }
-
+-- chat_id = 845633894
 
 
 readCfg :: IO Config
@@ -137,41 +136,19 @@ repeatMsg n msg = do
 
 showRepeat :: Message -> IO ()
 showRepeat msg = do
-  key <- BS.readFile "/home/urban/haskell/keyboard.json"
+  key <- readFile "keyboard.json"
   --let key = "&reply_markup={\"keyboard\":[[{\"text\":\"1\"},{\"text\":\"2\"},{\"text\":\"3\"},{\"text\":\"4\"},{\"text\":\"5\"}]]}"
-  url <- parseRequest $ botURL ++ "sendMessage?chat_id=" ++ (show . chat_id $ msg) ++ "&text=Enter number of repetitions" ++ "&reply_markup=" -- ++ key
+  url <- parseRequest $ botURL ++ "sendMessage?chat_id=" ++ (show . chat_id $ msg) ++ "&text=Enter number of repetitions" ++ "&reply_markup=" ++ key
   let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ url
   httpLBS request
   return ()
 
-
-data Key = Key {keytext :: String}
-instance ToJSON Key where
-  toJSON (Key key) = object ["text" .= key]
-
-data KeyRow = KeyRow [Key]
--- instance ToJSON KeyRow where
---   toJSON (KeyRow key) =
--- data Keyboard = Keyboard [KeyRow]
--- instance ToJSON Keyboard where
-
-k1 = Key "key 1"
-k2 = Key "key 2"
-k3 = Key "key 3"
-k4 = Key "key 4"
-k5 = Key "key 5"
-
-krow1 = KeyRow [k1, k2, k3]
-
 main :: IO ()
 main = do
-  B8.putStrLn $ Pr.encodePretty <$> krow1
-
-
-
-main' = do
   print "Waiting for updates"
   msg <- lastMsg
+  let chat = show . chat_id $ msg
+  putStrLn chat
   cfg <- readCfg
   writeCfg $ cfg {offset = 1 + update_id msg}
   case text msg of
