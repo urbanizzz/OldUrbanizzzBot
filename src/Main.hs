@@ -1,8 +1,9 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, DeriveGeneric, DeriveAnyClass #-}
 
 module Main where
 
 import            System.IO
+import            GHC.Generics
 import            Network.HTTP.Simple
 import            Network.HTTP.Client.Internal
 import qualified  Data.ByteString             as BS
@@ -19,24 +20,7 @@ data Config = Config {
   repeatNumber    :: Integer,
   repeatQuestion  :: String,
   offset          :: Integer }
-instance FromJSON Config where
-  parseJSON (Object cfg)  = Config
-                            <$>
-                            cfg .: "about"
-                            <*>
-                            cfg .: "repeat"
-                            <*>
-                            cfg .: "repeat_question"
-                            <*>
-                            cfg .: "offset"
-  parseJSON _             = mzero
-instance ToJSON Config where
-  toJSON (Config ab rep repq off) = object [
-                                    "about"           .= ab,
-                                    "repeat"          .= rep,
-                                    "repeat_question" .= repq,
-                                    "offset"          .= off
-                                    ]
+  deriving (Generic, ToJSON, FromJSON)
 instance Show Config where
   show (Config ab rep repq off) = "About=" ++ ab ++
                                   "\nNumber of repetitions=" ++ show rep ++
@@ -80,26 +64,15 @@ emptyMsg =  Message {
 readCfg :: IO Config
 readCfg = do
   rawJSON <- BS.readFile fileCfg
-  -- rawJSON <- withFile fileCfg ReadMode (\handle -> B.hGetContents handle)
-  let result = decodeStrict rawJSON :: Maybe Config
+  let result = eitherDecodeStrict rawJSON :: Either String Config
   return $ case result of
-    Nothing -> defaultCfg
-    Just js -> js
+    Left s -> error $ "error parsing JSON of config: " ++ s -- defaultCfg
+    Right js -> js
 
 --todo bracketsOnError
 writeCfg :: Config -> IO ()
 writeCfg cfg = withFile fileCfg WriteMode (\handle -> do
   B8.hPutStr handle $ Pr.encodePretty cfg)
-{-
-  bracketOnError
-    (openTemplFile "." "temp")
-    (\(tempName, tempHandle) -> do
-      hClose templHandle
-      removeFile tempName)
-    (\(tempName, tempHandle) -> do
-      B.hPutStr tempHandle cfg
-      hClose tempHandle
-      renameFile tempName fileCfg)-}
 
 fetchJSON :: IO B.ByteString
 fetchJSON = do
@@ -147,9 +120,8 @@ main :: IO ()
 main = do
   print "Waiting for updates"
   msg <- lastMsg
-  let chat = show . chat_id $ msg
-  putStrLn chat
   cfg <- readCfg
+  -- putStrLn . show $ cfg
   writeCfg $ cfg {offset = 1 + update_id msg}
   case text msg of
     "/help"   -> sendMsg msg {text = about cfg}
