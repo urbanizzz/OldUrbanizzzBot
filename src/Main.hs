@@ -6,10 +6,8 @@ import            System.IO
 import            GHC.Generics
 import            Network.HTTP.Simple
 import            Network.HTTP.Client.Internal
-import qualified  Data.ByteString             as BS
-import qualified  Data.ByteString.Lazy        as B
-import qualified  Data.ByteString.Lazy.Char8  as B8
-import qualified  Data.ByteString.Lazy.UTF8   as BU
+import qualified  Data.ByteString.Char8       as BS
+import qualified  Data.ByteString.Lazy.Char8  as BL
 import            Data.Aeson
 import qualified  Data.Aeson.Encode.Pretty    as Pr
 import            Control.Monad               (mzero)
@@ -29,7 +27,7 @@ instance Show Config where
                                   "\nOffset=" ++ show off
 
 type TCommand = String
-data TKey = TKey {keytext :: String} deriving (Show, Generic)
+data TKey = TKey {keytext :: Char} deriving (Show, Generic)
 instance ToJSON TKey where
   toJSON = genericToJSON defaultOptions { fieldLabelModifier = dropKey }
 data TKeyboard = TKeyboard { keyboard :: [[TKey]], one_time_keyboard :: Bool } deriving (Show, Generic, ToJSON)
@@ -38,13 +36,7 @@ dropKey :: String -> String
 dropKey "keytext" = "text"
 dropKey s = s
 
-k1 = TKey "key 1"
-k2 = TKey "key 2"
-k3 = TKey "key 3"
-k4 = TKey "key 4"
-k5 = TKey "key 5"
-
-kb = TKeyboard [[k1, k2], [k4]] True
+keySet = TKeyboard [map (\x -> TKey x) "12345"] True
 
 -- single message
 data Message = Message  {update_id :: Integer, chat_id :: Integer, text :: String} deriving Show
@@ -68,6 +60,7 @@ data Messages = Messages [Message]
 instance FromJSON Messages where
   parseJSON (Object msgs) = Messages <$> msgs .: "result"
 
+-- reply for the "sendMessage" method
 data ReplyMessage = ReplyMessage {replyText :: String} deriving Show
 instance FromJSON ReplyMessage where
   parseJSON (Object msg) = ReplyMessage <$> (msg .: "result" >>= (.: "text"))
@@ -83,6 +76,7 @@ emptyMsg =  Message {
               update_id = 0,
               chat_id = 0,
               text = "" }
+timeout = 60 :: Int
 -- chat_id = 845633894
 
 
@@ -96,36 +90,27 @@ readCfg = do
 
 --todo bracketsOnError
 writeCfg :: Config -> IO ()
-writeCfg cfg = withFile fileCfg WriteMode (\handle -> do
-  B8.hPutStr handle $ Pr.encodePretty cfg)
+writeCfg cfg = BL.writeFile fileCfg $ Pr.encodePretty cfg
 
-fetchJSON :: IO B.ByteString
-fetchJSON = do
+-- TG method getUpdates
+getUpd :: IO BL.ByteString
+getUpd = do
   cfg <- readCfg
-  url <- parseRequest $ botURL ++ "getUpdates?offset=" ++ (show . offset $ cfg) ++ "&timeout=60"
-  let request = url {
-    proxy           = Just (Proxy {proxyHost = "127.0.0.1", proxyPort = 9041}),
-    responseTimeout = ResponseTimeoutNone }
+  let requestObject = object [ "offset" .= (show . offset $ cfg), "timeout" .= timeout ]
+  initialRequest <- parseRequest $ botURL ++ "getUpdates"
+  let request = initialRequest
+        { method = "POST",
+          requestBody = RequestBodyLBS $ encode requestObject,
+          requestHeaders =
+            [ ("Content-Type", "application/json; charset=utf-8") ],
+          proxy = Just $ Proxy "127.0.0.1" 9041,
+          responseTimeout = ResponseTimeoutNone
+        }
   res <- httpLBS request
   return (getResponseBody res)
 
--- getting last message
-lastMsg :: IO Message
-lastMsg = do
-  rawJSON <- fetchJSON
-  let result = decode rawJSON :: Maybe Messages
-  return $ case result of
-    Nothing -> emptyMsg
-    Just (Messages js) -> if null js then emptyMsg else last $ js
-
--- sending message
-{-sendMsg :: Message -> IO ()
-sendMsg msg = do
-  url <- parseRequest $ botURL ++ "sendMessage?chat_id=" ++ (show . chat_id $ msg) ++ "&text=" ++ (text msg)
-  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ url
-  httpLBS request
-  return ()-}
-sendMsg :: Value -> IO B.ByteString
+-- TG method sendMessage
+sendMsg :: Value -> IO BL.ByteString
 sendMsg requestObject = do
   initialRequest <- parseRequest $ botURL ++ "sendMessage"
   let request = initialRequest
@@ -138,6 +123,15 @@ sendMsg requestObject = do
   res <- httpLBS request
   return (getResponseBody res)
 
+-- getting last message
+lastMsg :: IO Message
+lastMsg = do
+  rawJSON <- getUpd
+  let result = decode rawJSON :: Maybe Messages
+  return $ case result of
+    Nothing -> emptyMsg
+    Just (Messages js) -> if null js then emptyMsg else last $ js
+
 repeatMsg :: Int -> Message -> IO ()
 repeatMsg 0 _ = return ()
 repeatMsg n msg = do
@@ -146,12 +140,14 @@ repeatMsg n msg = do
 
 showRepeat :: Message -> IO ()
 showRepeat msg = do
-  let val = object [ "chat_id" .= chat_id msg, "text" .= text msg, "reply_markup" .= kb ]
+  let val = object [ "chat_id" .= chat_id msg, "text" .= text msg, "reply_markup" .= keySet ]
   rawJSON <- sendMsg val
   let result = decode rawJSON :: Maybe ReplyMessage
-  putStrLn $ case result of
-    Nothing -> show $ ReplyMessage "Empty"
-    Just msg -> show msg
+  -- todo checking for request error
+
+  msg <- lastMsg
+  cfg <- readCfg
+  writeCfg $ cfg {offset = 1 + update_id msg, repeatNumber = read . text $ msg}
   return ()
 
 showHelp :: Message -> IO ()
