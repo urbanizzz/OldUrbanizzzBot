@@ -18,6 +18,7 @@ dependencies:
   - http-client
   - aeson
   - aeson-pretty
+  - utf8-string
 
 executables:
   UrbanizzzBot:

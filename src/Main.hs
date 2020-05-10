@@ -9,6 +9,7 @@ import            Network.HTTP.Client.Internal
 import qualified  Data.ByteString             as BS
 import qualified  Data.ByteString.Lazy        as B
 import qualified  Data.ByteString.Lazy.Char8  as B8
+import qualified  Data.ByteString.Lazy.UTF8   as BU
 import            Data.Aeson
 import qualified  Data.Aeson.Encode.Pretty    as Pr
 import            Control.Monad               (mzero)
@@ -27,8 +28,26 @@ instance Show Config where
                                   "\nQuestion for repetitions=" ++ repq ++
                                   "\nOffset=" ++ show off
 
+type TCommand = String
+data TKey = TKey {keytext :: String} deriving (Show, Generic)
+instance ToJSON TKey where
+  toJSON = genericToJSON defaultOptions { fieldLabelModifier = dropKey }
+data TKeyboard = TKeyboard { keyboard :: [[TKey]], one_time_keyboard :: Bool } deriving (Show, Generic, ToJSON)
+
+dropKey :: String -> String
+dropKey "keytext" = "text"
+dropKey s = s
+
+k1 = TKey "key 1"
+k2 = TKey "key 2"
+k3 = TKey "key 3"
+k4 = TKey "key 4"
+k5 = TKey "key 5"
+
+kb = TKeyboard [[k1, k2], [k4]] True
+
 -- single message
-data Message = Message  {update_id :: Integer, chat_id :: Integer, text :: String}
+data Message = Message  {update_id :: Integer, chat_id :: Integer, text :: String} deriving Show
 instance FromJSON Message where
   parseJSON (Object msg)  = Message
                             <$>
@@ -41,11 +60,17 @@ instance FromJSON Message where
                             -- extracting text of a message (message -> text)
                             (msg .: "message" >>= (.: "text"))
   parseJSON _             = mzero
+instance ToJSON Message where
+  toJSON (Message _ chat_id txt) = object [ "chat_id" .= chat_id, "text" .= txt ]
 
 -- list of messages
 data Messages = Messages [Message]
 instance FromJSON Messages where
   parseJSON (Object msgs) = Messages <$> msgs .: "result"
+
+data ReplyMessage = ReplyMessage {replyText :: String} deriving Show
+instance FromJSON ReplyMessage where
+  parseJSON (Object msg) = ReplyMessage <$> (msg .: "result" >>= (.: "text"))
 
 botURL = "https://api.telegram.org/bot949284451:AAGK8fCgIhv2KLcmT8Mz_bf-3hAl0Ccp7pA/"
 fileCfg = "config.json"
@@ -94,26 +119,45 @@ lastMsg = do
     Just (Messages js) -> if null js then emptyMsg else last $ js
 
 -- sending message
-sendMsg :: Message -> IO ()
+{-sendMsg :: Message -> IO ()
 sendMsg msg = do
   url <- parseRequest $ botURL ++ "sendMessage?chat_id=" ++ (show . chat_id $ msg) ++ "&text=" ++ (text msg)
   let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ url
   httpLBS request
-  return ()
+  return ()-}
+sendMsg :: Value -> IO B.ByteString
+sendMsg requestObject = do
+  initialRequest <- parseRequest $ botURL ++ "sendMessage"
+  let request = initialRequest
+        { method = "POST",
+          requestBody = RequestBodyLBS $ encode requestObject,
+          requestHeaders =
+            [ ("Content-Type", "application/json; charset=utf-8") ],
+          proxy = Just $ Proxy "127.0.0.1" 9041,
+          responseTimeout = ResponseTimeoutNone
+        }
+  res <- httpLBS request
+  return (getResponseBody res)
 
 repeatMsg :: Int -> Message -> IO ()
 repeatMsg 0 _ = return ()
 repeatMsg n msg = do
-  sendMsg msg
+  sendMsg . toJSON $ msg
   repeatMsg (n-1) msg
 
 showRepeat :: Message -> IO ()
 showRepeat msg = do
-  key <- readFile "keyboard.json"
-  --let key = "&reply_markup={\"keyboard\":[[{\"text\":\"1\"},{\"text\":\"2\"},{\"text\":\"3\"},{\"text\":\"4\"},{\"text\":\"5\"}]]}"
-  url <- parseRequest $ botURL ++ "sendMessage?chat_id=" ++ (show . chat_id $ msg) ++ "&text=Enter number of repetitions" ++ "&reply_markup=" ++ key
-  let request = setRequestProxy (Just (Proxy "127.0.0.1" 9041)) $ url
-  httpLBS request
+  let val = object [ "chat_id" .= chat_id msg, "text" .= text msg, "reply_markup" .= kb ]
+  rawJSON <- sendMsg val
+  let result = decode rawJSON :: Maybe ReplyMessage
+  putStrLn $ case result of
+    Nothing -> show $ ReplyMessage "Empty"
+    Just msg -> show msg
+  return ()
+
+showHelp :: Message -> IO ()
+showHelp msg = do
+  sendMsg . toJSON $ msg
   return ()
 
 main :: IO ()
@@ -121,10 +165,9 @@ main = do
   print "Waiting for updates"
   msg <- lastMsg
   cfg <- readCfg
-  -- putStrLn . show $ cfg
   writeCfg $ cfg {offset = 1 + update_id msg}
   case text msg of
-    "/help"   -> sendMsg msg {text = about cfg}
-    "/repeat" -> showRepeat msg
+    "/help"   -> showHelp msg {text = about cfg}
+    "/repeat" -> showRepeat msg {text = repeatQuestion cfg}
     otherwise -> repeatMsg (fromIntegral . repeatNumber $ cfg) msg
   main
