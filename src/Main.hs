@@ -133,8 +133,7 @@ sendMsg requestObject = do
           requestBody = RequestBodyLBS $ encode requestObject,
           requestHeaders =
             [ ("Content-Type", "application/json; charset=utf-8") ],
-          proxy = Just $ Proxy "127.0.0.1" 9041,
-          responseTimeout = ResponseTimeoutNone
+          proxy = Just $ Proxy "127.0.0.1" 9041
         }
   res <- httpLBS request
   return (getResponseBody res)
