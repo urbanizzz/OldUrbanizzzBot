@@ -12,6 +12,8 @@ import            Data.Aeson
 import qualified  Data.Aeson.Encode.Pretty    as Pr
 import            Control.Monad               (mzero)
 import            Control.Applicative         ((<$>), (<*>))
+import qualified  Control.Monad.State.Lazy    as S
+import qualified  Data.Map.Strict             as Map
 
 -- config
 data Config = Config {
@@ -79,13 +81,21 @@ emptyMsg =  Message {
 timeout = 60 :: Int
 -- chat_id = 845633894
 
+-- state of bot is a Map
+-- key is a username and value is a repeatNumber
+-- if a key is not found than return default repeatNumber (from cfg file)
+type BotState = BotState
+botState :: Map.Map String Int
+botState = Map.empty
+
+setState ::
 
 readCfg :: IO Config
 readCfg = do
   rawJSON <- BS.readFile fileCfg
   let result = eitherDecodeStrict rawJSON :: Either String Config
   return $ case result of
-    Left s -> error $ "error parsing JSON of config: " ++ s -- defaultCfg
+    Left s -> error $ "error parsing JSON of config: " ++ s
     Right js -> js
 
 --todo bracketsOnError
